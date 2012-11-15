@@ -22,12 +22,12 @@
           (.addMember tcp-config peer))))
     config))
 
-(defn make-hazelcast [& [opts]]
+(defn make-hazelcast [opts]
   (Hazelcast/newHazelcastInstance (make-hazelcast-config opts)))
 
-(defn init []
+(defn init [& [opts]]
   (when-not @hazelcast
-    (reset! hazelcast (make-hazelcast))))
+    (reset! hazelcast (make-hazelcast opts))))
 
 ;; (init)
 
