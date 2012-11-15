@@ -1,0 +1,7 @@
+# clj-hazelcast
+
+Clojure library for the Hazelcast p2p cluster.
+
+## License
+
+Copyright (C) 2012 Runa Inc.
