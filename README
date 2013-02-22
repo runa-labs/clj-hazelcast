@@ -3,6 +3,10 @@
 Clojure library for Hazelcast, an open source clustering and highly scalable data distribution
 platform for Java.
 
+# TravisCI Status
+
+[![Build Status](https://travis-ci.org/runa-labs/clj-hazelcast.png)](https://travis-ci.org/runa-labs/clj-hazelcast)
+
 # Usage
 
 Clj hazelcast comes preconfigured out of the box and allows adding memmbers as an option.
@@ -22,20 +26,21 @@ Then you can retrieve "foobar" from host 2:    (:baz (hazelcast/get-map "your.na
 Furthermore, you can add listener to that data to perform all sorts of callbacks. 
 For example:
 
+```clj
 (let [events (atom [])
-               listener-fn (fn [& event]
-                             (swap! events conj event))
-               listener (hazelcast/add-entry-listener! @test-map listener-fn)
-               result (do
-                        (hazelcast/put! @test-map :baz "foobar")
-                        (hazelcast/put! @test-map :foo "bizbang")
-                        (Thread/sleep 5)
-                        (count @events))]
-           (hazelcast/remove-entry-listener! @test-map listener)
-           result)
+      listener-fn (fn [& event]
+                    (swap! events conj event))
+      listener (hazelcast/add-entry-listener! @test-map listener-fn)
+      result (do
+               (hazelcast/put! @test-map :baz "foobar")
+               (hazelcast/put! @test-map :foo "bizbang")
+               (Thread/sleep 5)
+               (count @events))]
+  (hazelcast/remove-entry-listener! @test-map listener)
+  result)
+```
 
 Please refer to the inlcuded test for more detail.
-
 
 ## License
 
