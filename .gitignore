@@ -8,3 +8,4 @@
 /lib
 /native
 /pom.xml
+/target/stale/extract-native.dependencies
