@@ -2,5 +2,5 @@
   :description "Clojure library for the Hazelcast p2p cluster"
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojars.runa/clj-kryo "1.3.0"]
-                 [com.hazelcast/hazelcast "2.4"]]
+                 [com.hazelcast/hazelcast "3.1.3"]]
   :repositories {"releases" {:url "s3p://runa-maven/releases/"}})
