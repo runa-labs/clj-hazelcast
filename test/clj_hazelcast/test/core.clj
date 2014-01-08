@@ -36,4 +36,4 @@
                         (Thread/sleep 5)
                         (count @events))]
            (hazelcast/remove-entry-listener! @test-map listener)
-           (count @events)))))
+           result))))
