@@ -46,17 +46,17 @@ Please refer to the inlcuded test for more detail.
 The namespace **clj-hazelcast.mr** contains an abstraction to make it easier when dealing with mapreduce jobs.
 
 ###Mapper
-runs the function f over the content 
+runs the function f over the content.
 f is a function of two arguments, key and value.
-f must return a *pair* like [key1 value1]"
+f must return a *pair* like [key1 value1]
 	  
 Wordcount Mapper
 
 	(fn [k v] [k 1])	
 	
 ###Reducer 
-runs the reducer function rf over the content
-rf is a function of two arguments, value and an atom containing the state
+runs the reducer function rf over the content.
+rf is a function of two arguments, value and an atom containing the state.
 state does contain the key:
 	
 	{:key key :val val}
