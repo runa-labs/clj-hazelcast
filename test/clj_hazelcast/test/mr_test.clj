@@ -21,11 +21,10 @@
     (is (= {:k1 1 :k2 1 :k5 1 :k3 1 :k4 1}
            (let [m (fn [k v] (do
                                (log/infof "Mapped Key %s Mapped Value %s " k v) [k 1]))
-                 r (fn [v state] (let [val (:val @state)
-                                       old @state]
+                 r (fn [v state] (let [old @state]
                                    (log/infof "Reducing %s" old)
-                                   (if-not (nil? val)
-                                     (reset! state (assoc old :val (inc val)))
+                                   (if-not (nil? (:val old))
+                                     (reset! state (assoc old :val (inc (:val old))))
                                      (reset! state (assoc old :val 1))
                                      )
                                    (log/infof "Reduced %s" @state)
