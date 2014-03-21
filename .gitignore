@@ -9,3 +9,6 @@
 /native
 /pom.xml
 /target/stale/extract-native.dependencies
+.idea
+*.iml
+*.jpr
