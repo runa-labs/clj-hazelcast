@@ -42,6 +42,38 @@ For example:
 
 Please refer to the inlcuded test for more detail.
 
+##MapReduce using Hazelcast
+The namespace **clj-hazelcast.mr** contains an abstraction to make it easier when dealing with mapreduce jobs.
+
+###Mapper
+runs the function f over the content 
+f is a function of two arguments, key and value.
+f must return a *pair* like [key1 value1]"
+	  
+Wordcount Mapper
+
+	(fn [k v] [k 1])	
+	
+###Reducer 
+runs the reducer function rf over the content
+rf is a function of two arguments, value and an atom containing the state
+state does contain the key:
+	
+	{:key key :val val}
+
+rf should set the val eventually.
+
+Wordcount Reducer
+  
+	(fn [v state] (let [val (:val @state)
+                       old @state]
+                                   (if-not (nil? val)
+                                     (reset! state (assoc old :val (inc val)))
+                                     (reset! state (assoc old :val 1)))))
+
+Due to the design of the framework, you need a Collator to get an aggregated result of all the keys. (TODO)
+
+
 ## License
 
  *   The use and distribution terms for this software are covered by the
