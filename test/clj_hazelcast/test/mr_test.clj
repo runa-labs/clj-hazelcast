@@ -47,7 +47,7 @@
              (hz/put! @mr-test-map :k4 "v4")
              (hz/put! @mr-test-map :k5 "v5")
              (let [tracker (mr/make-job-tracker @hz/hazelcast)
-                   res (mr/submit-job @mr-test-map m r tracker)]
+                   res (mr/submit-job {:map @mr-test-map :mapper-fn m :reducer-fn r :tracker tracker})]
                (log/infof "Result %s" res)
                res))))))
 
@@ -75,6 +75,6 @@
              (hz/put! @wordcount-map :k2 "java clojure")
              (hz/put! @wordcount-map :k3 "lisp clojure")
              (let [tracker (mr/make-job-tracker @hz/hazelcast)
-                   res (mr/submit-job @wordcount-map mapper r tracker)]
+                   res (mr/submit-job {:map @wordcount-map :mapper-fn mapper :reducer-fn r :tracker tracker})]
                (log/infof "Result %s" res)
                res))))))
