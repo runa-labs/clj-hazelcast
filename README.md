@@ -46,13 +46,14 @@ Please refer to the inlcuded test for more detail.
 The namespace **clj-hazelcast.mr** contains an abstraction to make it easier when dealing with mapreduce jobs.
 
 ###Mapper
-Runs the function f over the content. 
+Runs the function f over the content
 f is a function of two arguments, key and value.
-f must return a *pair* like [key1 value1]
+f must return a sequence of *pairs* like
+[[key1 value1] [key2 value2] ...]
 	  
-Wordcount Mapper
+Sample Mapper
 
-	(fn [k v] [k 1])	
+	(fn [k v] [[1 2])
 	
 ###Reducer 
 Runs the reducer function rf over the content
@@ -63,7 +64,7 @@ State does contain the key:
 
 rf should set the val eventually.
 
-Wordcount Reducer
+Sample Reducer
   
 		(fn [v state] (let [old @state]
              (if-not (nil? (:val old))
@@ -71,6 +72,9 @@ Wordcount Reducer
                 (reset! state (assoc old :val 1)))))
 
 Due to the design of the framework, you need a Collator to get an aggregated result of all the keys. (TODO)
+
+###Wordcount Example
+Check 'clj-hazelcast.test.mr-test
 
 
 ## License

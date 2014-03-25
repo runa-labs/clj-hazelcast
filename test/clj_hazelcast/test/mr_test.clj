@@ -7,20 +7,31 @@
 
 
 (def mr-test-map (atom nil))
+(def wordcount-map (atom nil))
 
 (defn fixture [f]
   (hz/init)
   (reset! mr-test-map (hz/get-map "clj-hazelcast.cluster-tests.mr-test-map"))
+  (reset! wordcount-map (hz/get-map "clj-hazelcast.cluster-tests.wordcount-map"))
   (f))
 
 (use-fixtures :once fixture)
 
+(defn split-words [text]
+  "split text into a list of words"
+  (re-seq #"\w+" text))
+
+(defn calculate-frequencies [words]
+  "convert list of words to a word-frequency hash"
+  (reduce (fn [words word] (assoc words word (inc (get words word 0))))
+          {}
+          words))
 
 (deftest mapreduce-test
-  (testing "count"
+  (testing "key-count"
     (is (= {:k1 1 :k2 1 :k5 1 :k3 1 :k4 1}
            (let [m (fn [k v] (do
-                               (log/infof "Mapped Key %s Mapped Value %s " k v) [k 1]))
+                               (log/infof "Mapped Key %s Mapped Value %s " k v) [[k 1]]))
                  r (fn [v state] (let [old @state]
                                    (log/infof "Reducing %s" old)
                                    (if-not (nil? (:val old))
@@ -37,5 +48,33 @@
              (hz/put! @mr-test-map :k5 "v5")
              (let [tracker (mr/make-job-tracker @hz/hazelcast)
                    res (mr/submit-job @mr-test-map m r tracker)]
+               (log/infof "Result %s" res)
+               res))))))
+
+(defn mapper
+  [k v] (let [freq (calculate-frequencies (split-words v))]
+          (log/infof "Extracted frequencies %s" freq)
+          (first (partition 2 freq))))
+
+(deftest wordcount-test
+  (testing "mapper"
+    (is (= [["bar" 1] ["foo" 1]] (mapper "some-key" "foo bar"))))
+  (testing "wordcount"
+    (is (= {"clojure" 3 "java" 2 "lisp" 1}
+           (let [
+                  r (fn [v state] (let [old @state]
+                                    (log/infof "Reducing %s" old)
+                                    (if-not (nil? (:val old))
+                                      (reset! state (assoc old :val (inc (:val old))))
+                                      (reset! state (assoc old :val 1))
+                                      )
+                                    (log/infof "Reduced %s" @state)
+                                    )
+                      )]
+             (hz/put! @wordcount-map :k1 "clojure java")
+             (hz/put! @wordcount-map :k2 "java clojure")
+             (hz/put! @wordcount-map :k3 "lisp clojure")
+             (let [tracker (mr/make-job-tracker @hz/hazelcast)
+                   res (mr/submit-job @wordcount-map mapper r tracker)]
                (log/infof "Result %s" res)
                res))))))

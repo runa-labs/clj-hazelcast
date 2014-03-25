@@ -1,4 +1,6 @@
 (require '[clj-hazelcast.core :as hazelcast])
+(require '[clj-hazelcast.mr :as mr])
+(require '[clojure.tools.logging :as log])
 
 (def test-map (atom nil))
 
@@ -8,28 +10,12 @@
 (hazelcast/put! @test-map :baz "foobar")
 (hazelcast/put! @test-map :asd "asd")
 
-@test-map
-
-(let [events (atom [])
-      listener-fn (fn [& event]
-                    (swap! events conj event))
-      listener (hazelcast/add-entry-listener! @test-map listener-fn)
-      result (do
-               (hazelcast/put! @test-map :baz "foobar")
-               (hazelcast/put! @test-map :foo "bizbang")
-               (Thread/sleep 5)
-               (count @events))]
-  (hazelcast/remove-entry-listener! @test-map listener)
-  result)
-
-
-
-(def jobtracker (.getJobTracker @hazelcast/hazelcast "default"))
+(eval @test-map)
 
 ;desired mapper sample
 (defn m1 [key value]
   (println key value)
-  [1 2])
+  [key 1])
 
 ;desired reducer sample
 (defn r1 [v state]
@@ -41,14 +27,7 @@
   )
 
 
-
-(def job (.newJob jobtracker src))
-(def j1 (.reducer (.mapper job (hmap m1)) (hreducefactory r1)))
-
-(def fut (.submit j1))
-(->> (.getJobId fut)
-     (.getTrackableJob jobtracker)
-     (.getJobProcessInformation)
-     (.getProcessedRecords))
-
-(import '(com.hazelcast.core ExecutionCallback))
+(let [tracker (mr/make-job-tracker @hazelcast/hazelcast)
+      res (mr/submit-job @test-map m1 r1 tracker)]
+  (log/infof "Result %s" res)
+  res)
