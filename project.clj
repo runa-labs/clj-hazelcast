@@ -3,8 +3,8 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojars.runa/clj-kryo "1.4.1"]
                  [com.hazelcast/hazelcast "3.2-RC2"]
-                 [org.clojure/tools.logging "0.2.6"]
                  ]
+  :profiles {:provided {:dependencies [[org.clojure/tools.logging "0.2.6"]]}}
   :repositories {"releases" {:url "s3p://runa-maven/releases/"}}
   :global-vars {*warn-on-reflection* true}
   )
