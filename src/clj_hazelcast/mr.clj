@@ -30,7 +30,14 @@
       [Mapper] []
     (map [k v collector]
       (let [pair-seq (f k v)]
-        (emit-mapped-pairs pair-seq collector)
+        (if-not (coll? pair-seq)
+          (do
+            (log/errorf "Bad Mapper Function, returned result is not a Collection")
+            (throw (RuntimeException. "Bad Mapper function")))
+          (do
+            (log/debugf "Mapper Returned :%s " (class pair-seq))
+            (emit-mapped-pairs pair-seq collector))
+          )
         )
       )))
 

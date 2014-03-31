@@ -1,4 +1,5 @@
 (ns clj-hazelcast.test.mr-test
+  (:import (java.util.concurrent TimeoutException))
   (:use clojure.test)
   (:require [clj-hazelcast.core :as hz]
             [clj-hazelcast.mr :as mr]
@@ -8,11 +9,13 @@
 
 (def mr-test-map (atom nil))
 (def wordcount-map (atom nil))
+(def validation-map (atom nil))
 
 (defn fixture [f]
   (hz/init)
   (reset! mr-test-map (hz/get-map "clj-hazelcast.cluster-tests.mr-test-map"))
   (reset! wordcount-map (hz/get-map "clj-hazelcast.cluster-tests.wordcount-map"))
+  (reset! validation-map (hz/get-map "clj-hazelcast.cluster-tests.validation-map"))
   (f))
 
 (use-fixtures :once fixture)
@@ -30,15 +33,12 @@
 (deftest mapreduce-test
   (testing "key-count"
     (is (= {:k1 1 :k2 1 :k5 1 :k3 1 :k4 1}
-           (let [m (fn [k v] (do
-                               (log/infof "Mapped Key %s Mapped Value %s " k v) [[k 1]]))
+           (let [m (fn [k v] [[k 1]])
                  r (fn [v state] (let [old @state]
-                                   (log/infof "Reducing %s" old)
                                    (if-not (nil? (:val old))
                                      (reset! state (assoc old :val (inc (:val old))))
                                      (reset! state (assoc old :val 1))
                                      )
-                                   (log/infof "Reduced %s" @state)
                                    )
                      )]
              (hz/put! @mr-test-map :k1 "v1")
@@ -53,7 +53,6 @@
 
 (defn mapper
   [k v] (let [freq (calculate-frequencies (split-words v))]
-          (log/infof "Extracted frequencies %s" freq)
           (first (partition 2 freq))))
 
 (deftest wordcount-test
@@ -63,12 +62,10 @@
     (is (= {"clojure" 3 "java" 2 "lisp" 1}
            (let [
                   r (fn [v state] (let [old @state]
-                                    (log/infof "Reducing %s" old)
                                     (if-not (nil? (:val old))
                                       (reset! state (assoc old :val (inc (:val old))))
                                       (reset! state (assoc old :val 1))
                                       )
-                                    (log/infof "Reduced %s" @state)
                                     )
                       )]
              (hz/put! @wordcount-map :k1 "clojure java")
@@ -78,3 +75,22 @@
                    res (mr/submit-job {:map @wordcount-map :mapper-fn mapper :reducer-fn r :tracker tracker})]
                (log/infof "Result %s" res)
                res))))))
+
+
+(deftest validation
+  (testing "empty-source-map"
+    (is (= {}
+           (let [m (fn [k v] 1)
+                 r (fn [v state] (reset! state {:val 1}))
+                 tracker (mr/make-job-tracker @hz/hazelcast)]
+             (mr/submit-job {:map @validation-map :mapper-fn m :reducer-fn r :tracker tracker}))))
+    )
+  (testing "bad-mapper"
+    (is (thrown? TimeoutException
+           (let [m (fn [k v] 1)
+                 r (fn [v state] (reset! state {:val 1}))
+                 tracker (mr/make-job-tracker @hz/hazelcast)]
+             (hz/put! @validation-map :k1 "clojure java")
+             (hz/put! @validation-map :k2 "java clojure")
+             (hz/put! @validation-map :k3 "lisp clojure")
+             (mr/submit-job {:map @validation-map :mapper-fn m :reducer-fn r :tracker tracker}))))))
