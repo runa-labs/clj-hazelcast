@@ -12,3 +12,4 @@
 .idea
 *.iml
 *.jpr
+/test/clj_hazelcast/test/temp.clj
