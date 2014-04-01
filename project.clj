@@ -6,4 +6,5 @@
                  ]
   :profiles {:provided {:dependencies [[org.clojure/tools.logging "0.2.6"]]}}
   :global-vars {*warn-on-reflection* true}
+  :min-lein-version "2.0.0" ;provided deps
   )
