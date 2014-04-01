@@ -33,7 +33,7 @@
                result (do
                         (hazelcast/put! @test-map :baz "foobar")
                         (hazelcast/put! @test-map :foo "bizbang")
-                        (Thread/sleep 5)
+                        (Thread/sleep 1000)
                         (count @events))]
            (hazelcast/remove-entry-listener! @test-map listener)
            result))))
