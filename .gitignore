@@ -9,3 +9,7 @@
 /native
 /pom.xml
 /target/stale/extract-native.dependencies
+.idea
+*.iml
+*.jpr
+/test/clj_hazelcast/test/temp.clj

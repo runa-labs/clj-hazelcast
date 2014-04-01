@@ -9,7 +9,7 @@
    [java.util Set List Map HashSet Queue]
    java.util.concurrent.locks.Lock))
 
-(def ^:private hazelcast (atom nil))
+(def hazelcast (atom nil))
 
 (defn make-hazelcast-config [opts]
   (let [config (.build (XmlConfigBuilder.))]
