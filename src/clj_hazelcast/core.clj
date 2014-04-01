@@ -63,11 +63,10 @@
                      (listener-fn :update (.getKey event) (.getValue event)))
                    (entryEvicted [^EntryEvent event]
                      (listener-fn :evict (.getKey event) (.getValue event))))]
-    (.addEntryListener m listener true)
-    listener))
+    (.addEntryListener m listener true)))
 
-(defn remove-entry-listener! [^Map m listener]
-  (.removeEntryListener ^IMap m listener))
+(defn remove-entry-listener! [^Map m ^String id]
+  (.removeEntryListener ^IMap m id))
 
 (defn ^List get-list [name]
   (.getList ^HazelcastInstance @hazelcast name))

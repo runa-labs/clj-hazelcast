@@ -9,14 +9,14 @@ platform for Java.
 
 # Usage
 
-Clj hazelcast comes preconfigured out of the box and allows adding memmbers as an option.
+Clj hazelcast comes preconfigured out of the box and allows adding members as an option.
 For example, The init function takes a map, {:peers [hostname1 hostname2 ...]}, 
 and starts a peer node on them as the member of the cluster.
 
 This library supports synchronization of clj-kryo (another open source library 
 from Runa labs) serializable data structures across network. It also supports 
 event driven communication among them. A typical use case would to sync key/value
-pair among the peers. For example,
+pair among the peers. For example:
 
 Suppose you have following data in all nodes:   (def test-map (atom nil))
 You can put new values to this map on host 1:   (hazelcast/put! @test-map :baz "foobar")
