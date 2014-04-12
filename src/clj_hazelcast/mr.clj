@@ -1,7 +1,6 @@
 (ns clj-hazelcast.mr
   (:import (com.hazelcast.mapreduce Mapper Reducer ReducerFactory KeyValueSource Combiner CombinerFactory Collator)
-           (com.hazelcast.core ExecutionCallback)
-           (java.util.concurrent TimeUnit))
+           (com.hazelcast.core ExecutionCallback))
   (:require [clj-hazelcast.core :as hazelcast]
             [clojure.tools.logging :as log]))
 
@@ -12,10 +11,8 @@
            (let [emit-key (first %1)
                  emit-value (second %1)]
              (log/debugf "emitting key: %s emit vlaue: %s " emit-key emit-value)
-             (.emit collector emit-key emit-value)
-             ))
-         pairs))
-  )
+             (.emit collector emit-key emit-value)))
+         pairs)))
 
 (defn- hmap
   "runs the function f over the content
@@ -32,14 +29,11 @@
       (let [pair-seq (f k v)]
         (if-not (coll? pair-seq)
           (do
-            (log/errorf "Bad Mapper Function, returned result is not a Collection")
-            (throw (RuntimeException. "Bad Mapper function")))
+            (log/errorf "Bad Mapper Function, returned result is not a Collection %s " pair-seq)
+            (throw (RuntimeException. "Bad Mapper function, should return a collection")))
           (do
             (log/debugf "Mapper Returned :%s " (class pair-seq))
-            (emit-mapped-pairs pair-seq collector))
-          )
-        )
-      )))
+            (emit-mapped-pairs pair-seq collector)))))))
 
 
 (defn- hreducefactory
@@ -68,8 +62,10 @@
           (reduce [v]
             (do
               (log/debugf "reduce with %s" v)
-              (f v state))
-            )
+              (f v state)
+              (when (nil? (:val @state))
+                (log/errorf "Bad Reducer function, should set :val to state : %s" @state)
+                (throw (RuntimeException. "Bad Reducer function, should set :val to state")))))
           (finalizeReduce []
             (do
               (log/debugf "finalizeReduce")
@@ -98,8 +94,7 @@
           (finalizeChunk []
             (let [ret-val (:val @state)]
               (log/debugf "finalizeChunk")
-              (reset! state {:key key})))))))
-  )
+              (reset! state {:key key}))))))))
 
 (defn hcollator
   "
@@ -115,15 +110,11 @@
     (collate [pairs]
       ;(log/debugf "Collating %s " pairs)
       ;(log/debugf "Collating %s " (class pairs))
-      (f (iterator-seq (.iterator pairs)))
-      )
-    )
-  )
+      (f (iterator-seq (.iterator pairs))))))
 
 
 (defn make-job-tracker [hz-instance]
-  (.getJobTracker hz-instance "default")
-  )
+  (.getJobTracker hz-instance "default"))
 
 (defn submit-job "returns the future object from Hazelcast Mapreduce Api"
   [{:keys [map mapper-fn combiner-fn reducer-fn collator-fn tracker]}]
@@ -155,6 +146,5 @@
                      (onFailure [t]
                        (.printStackTrace t))))
     (log/debugf "Callback registered ...")
-    (.get @job 2 TimeUnit/SECONDS)
-    ))
+    @job))
 
