@@ -37,3 +37,16 @@
                         (count @events))]
            (hazelcast/remove-entry-listener! @test-map listener)
            result))))
+
+
+(deftest queue
+  (testing "blocking queue add and take"
+    (is (= 42 (let [queue (hazelcast/get-queue "test-queue")]
+                   (hazelcast/add! queue {:my-map-value 42})
+                   (:my-map-value (hazelcast/take! queue))))))
+  (testing "blocking queue addAll and take"
+    (is (= #{42 52} (let [queue (hazelcast/get-queue "test-queue2")
+                          result (atom #{})]
+                (hazelcast/add-all! queue [{:my-map-value 42} {:my-map-value 52}])
+                (swap! result conj (:my-map-value (hazelcast/take! queue)))
+                (swap! result conj (:my-map-value (hazelcast/take! queue))))))))

@@ -1,13 +1,13 @@
 (ns clj-hazelcast.core
   (:require
-   [clj-kryo.core :as kryo])
+    [clj-kryo.core :as kryo])
   (:import
-   [com.hazelcast.core
-    Hazelcast HazelcastInstance EntryListener ItemListener
-    IMap IList EntryEvent]
-   [com.hazelcast.config XmlConfigBuilder TcpIpConfig]
-   [java.util Set List Map HashSet Queue]
-   java.util.concurrent.locks.Lock))
+    [com.hazelcast.core
+     Hazelcast HazelcastInstance EntryListener ItemListener
+     IMap IList EntryEvent]
+    [com.hazelcast.config XmlConfigBuilder TcpIpConfig]
+    [java.util Set List Map HashSet Queue]
+    java.util.concurrent.locks.Lock (java.util.concurrent BlockingQueue)))
 
 (def hazelcast (atom nil))
 
@@ -74,11 +74,11 @@
 (defn ^Set get-set [name]
   (.getSet ^HazelcastInstance @hazelcast name))
 
-(defn add! [list-or-set item]
-  (.add list-or-set (kryo/wrap-kryo-serializable item)))
+(defn add! [list-or-set-or-queue item]
+  (.add list-or-set-or-queue (kryo/wrap-kryo-serializable item)))
 
-(defn add-all! [list-or-set items]
-  (.addAll list-or-set items))
+(defn add-all! [list-or-set-or-queue items]
+  (.addAll list-or-set-or-queue items))
 
 (defn add-item-listener! [^IList list listener-fn]
   (let [listener (proxy [ItemListener] []
@@ -88,3 +88,12 @@
                      (listener-fn :remove item)))]
     (.addItemListener list listener true)
     listener))
+
+
+;queue related
+(defn ^BlockingQueue get-queue [name]
+  "returns a distributed blocking queue instance based on Hazelcast"
+  (.getQueue ^HazelcastInstance @hazelcast name))
+
+(defn take! [^BlockingQueue queue]
+  (.take queue))

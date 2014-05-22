@@ -1,5 +1,5 @@
 (ns clj-hazelcast.test.mr-test
-  (:import (java.util.concurrent TimeoutException TimeUnit))
+  (:import (java.util.concurrent TimeoutException TimeUnit ExecutionException))
   (:use clojure.test)
   (:require [clj-hazelcast.core :as hz]
             [clj-hazelcast.mr :as mr]
@@ -81,21 +81,18 @@
              (-> (mr/submit-job {:map @validation-map :mapper-fn m :reducer-fn r :tracker tracker})
                  (.get 2 TimeUnit/SECONDS)))))
     )
-  ;TODO extend this test when issue #2173 is fixed,exceptions are not propagated correctly
-  ;https://github.com/hazelcast/hazelcast/issues/2173
   (testing "bad-mapper"
-    (is (thrown? TimeoutException
-                 (let [m (fn [k v] 1) ;bad mapper, should return collection
+    (is (thrown? ExecutionException
+                 (let [m (fn [k v] 1) ;bad mapper, should return a collection
                        r (fn [v state] (reset! state {:val 1}))
                        tracker (mr/make-job-tracker @hz/hazelcast)]
-                   (hz/put! @validation-map :k1 "clojure java")
-                   (hz/put! @validation-map :k2 "java clojure")
-                   (hz/put! @validation-map :k3 "lisp clojure")
+                   (hz/put! @validation-map :k1 "bad mapper")
+                   (hz/put! @validation-map :k2 "mapper bad")
+                   (hz/put! @validation-map :k3 "mapper mapper")
                    (-> (mr/submit-job {:map @validation-map :mapper-fn m :reducer-fn r :tracker tracker})
                        (.get 2 TimeUnit/SECONDS))))))
-  ;TODO #2173
   (testing "bad-reducer"
-    (is (thrown? TimeoutException
+    (is (thrown? ExecutionException
                  (let [m (fn [k v] [[k 1]])
                        r (fn [v state] 1) ;bad reducer ,should set :val
                        tracker (mr/make-job-tracker @hz/hazelcast)]
@@ -103,4 +100,5 @@
                    (hz/put! @validation-map :k2 "java clojure")
                    (hz/put! @validation-map :k3 "lisp clojure")
                    (-> (mr/submit-job {:map @validation-map :mapper-fn m :reducer-fn r :tracker tracker})
-                       (.get 2 TimeUnit/SECONDS)))))))
+                       (.get 2 TimeUnit/SECONDS))))))
+  )
