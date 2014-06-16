@@ -39,62 +39,61 @@
 (defn- hreducefactory
   "runs the reducer function rf over the content
 
-  rf is a function of two arguments, value and an atom containing the state
+  rf is a function of three arguments,
 
-  state does contain the key:
+  key,value and acc
 
-  {:key key
-   :val val}
-
-  rf should set the val eventually
+  rf should return the accumulated result.
   "
-  [f]
+  [f initial-accumulator-value]
   (proxy [ReducerFactory] []
     (newReducer [key]
-      (let [state (atom nil)]
+      (let [acc (atom {:value initial-accumulator-value})]
         (proxy
             [Reducer] []
           (beginReduce [k]
             (do
               (log/debugf "beginReduce with %s" k)
-              (reset! state {:key k}))
+              (swap! acc assoc :key k))
             )
           (reduce [v]
             (do
               (log/debugf "reduce with %s" v)
-              (f v state)
-              (when (nil? (:val @state))
-                (log/errorf "Bad Reducer function, should set :val to state : %s" @state)
-                (throw (RuntimeException. "Bad Reducer function, should set :val to state")))))
+              (let [reduced (f (:key @acc) v (:value @acc))]
+                (if-not (nil? reduced)
+                  (swap! acc assoc :value reduced)
+                  (do
+                    (log/errorf "Bad Reducer function, should set :val to acc : %s" @acc)
+                    (throw (RuntimeException. "Bad Reducer function, should set :val to acc")))))))
           (finalizeReduce []
             (do
               (log/debugf "finalizeReduce")
-              (:val @state))))))))
+              (:value @acc))))))))
 
 (defn- hcombinerfactory
   "runs the combiner function cf over the content
 
-  cf is a function of two arguments, value and an atom containing the state
+  cf is a function of three arguments,
 
-  {:val val}
+  key,value and acc
 
-  rf should set the val eventually
+  cf should set the val eventually
   "
-  [f]
+  [f initial-accumulator-value]
   (proxy [CombinerFactory] []
     (newCombiner [key]
       (log/debugf "newCombiner instance for key: %s " key)
-      (let [state (atom {:key key})]
+      (let [acc (atom {:value initial-accumulator-value})]
         (proxy
             [Combiner] []
           (combine [k v]
-            (do
-              (log/debugf "combine with key: %s value: %s" k v)
-              (f v state)))
+            (let [combined (f k v (:value @acc))]
+              (log/debugf "combined with key: %s value: %s" k v)
+              (swap! acc assoc :value combined)))
           (finalizeChunk []
-            (let [ret-val (:val @state)]
-              (log/debugf "finalizeChunk")
-              (reset! state {:key key}))))))))
+            (let [ret-val (:value @acc)]
+              (log/debugf "finalizeChunk with value %s " ret-val)
+              (reset! acc {:value initial-accumulator-value}))))))))
 
 (defn hcollator
   "
@@ -117,10 +116,10 @@
   (.getJobTracker hz-instance "default"))
 
 (defn submit-job "returns the future object from Hazelcast Mapreduce Api"
-  [{:keys [map mapper-fn combiner-fn reducer-fn collator-fn tracker]}]
+  [{:keys [map mapper-fn combiner-fn combiner-acc reducer-fn reducer-acc collator-fn tracker]}]
   (let [src (KeyValueSource/fromMap map)
         mapper (hmap mapper-fn)
-        reducer (hreducefactory reducer-fn)
+        reducer (hreducefactory reducer-fn reducer-acc)
         job (atom (-> (.newJob tracker src)
                       (.mapper mapper)))]
     (log/debugf "Submitting new MR Job ...")
@@ -128,7 +127,7 @@
       (do
         (log/debugf "No Combiner defined for job...")
         (reset! job (-> @job
-                        (.combiner (hcombinerfactory combiner-fn)))))
+                        (.combiner (hcombinerfactory combiner-fn combiner-acc)))))
       )
     (if-not (nil? collator-fn)
       (do

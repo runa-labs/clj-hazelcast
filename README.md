@@ -61,22 +61,15 @@ This is a simple mapper that gets each key-value pair and returns a pair of k an
 	
 ##Reducer 
 Runs the reducer function rf over the content. <br>
-rf is a function of two arguments, value and an atom containing the state. (You can check the related Hazelcast Documentation to see why this is implemented this way)<br>
-State is a map, and contains the **:key** of the reduced pair: <br>
-	
-	{:key key :val val}
+rf is a function of three arguments, key,value and an accumulator.<br>
 
-rf should set the **:val** eventually. This is how you would pass the computed value out of the reducer.
+rf should return the new accumulator.
 
 Sample Reducer
-  
-		(fn [v state] 
-			(let [old @state]
-             (if-not (nil? (:val old))
-                (reset! state (assoc old :val (inc (:val old))))
-                (reset! state (assoc old :val 1)))))
 
-This is a simple reducer that counts unique occurences of each key.
+    (fn [k v acc] (inc acc))
+
+This is a simple counting reducer.
 
 ##Collator
 
