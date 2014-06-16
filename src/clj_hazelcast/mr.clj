@@ -66,9 +66,10 @@
                     (log/errorf "Bad Reducer function, should set :val to acc : %s" @acc)
                     (throw (RuntimeException. "Bad Reducer function, should set :val to acc")))))))
           (finalizeReduce []
-            (do
+            (let [ret-val (:value @acc)]
               (log/debugf "finalizeReduce")
-              (:value @acc))))))))
+              (reset! acc {:value initial-accumulator-value})
+              ret-val)))))))
 
 (defn- hcombinerfactory
   "runs the combiner function cf over the content
@@ -93,7 +94,8 @@
           (finalizeChunk []
             (let [ret-val (:value @acc)]
               (log/debugf "finalizeChunk with value %s " ret-val)
-              (reset! acc {:value initial-accumulator-value}))))))))
+              (reset! acc {:value initial-accumulator-value})
+              ret-val)))))))
 
 (defn hcollator
   "
