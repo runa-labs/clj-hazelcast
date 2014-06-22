@@ -92,6 +92,14 @@ Combiners are mostly the same as the reducers
 ##Wordcount Example
 Check 'clj-hazelcast.test.mr-test
 
+#Distributed Query
+You can use the defpredicate macro to use clojure functions as predicates.
+A predicate function is a function with 2 parameters, a key and a value and returns a boolean value.
+
+	(require '[clj-hazelcast.query :as q])
+	(q/defpredicate stark? [k v] (.contains v "Stark"))
+	(q/values @query-map stark?)
+
 
 ## License
 
