@@ -9,7 +9,7 @@
     [java.util Set List Map HashSet Queue]
     java.util.concurrent.locks.Lock (java.util.concurrent BlockingQueue)))
 
-(def hazelcast (atom nil))
+(def ^:dynamic hazelcast (atom nil))
 
 (defn make-hazelcast-config [opts]
   (let [config (.build (XmlConfigBuilder.))]

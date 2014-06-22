@@ -1,20 +1,22 @@
 (ns clj-hazelcast.mr
   (:import (com.hazelcast.mapreduce Mapper Reducer ReducerFactory KeyValueSource Combiner CombinerFactory Collator)
-           (com.hazelcast.core ExecutionCallback))
+           (com.hazelcast.core ExecutionCallback)
+           (cljhazelcast.remote RemoteMapper RemoteReducerFactory RemoteCombinerFactory RemoteCollator))
   (:require [clj-hazelcast.core :as hazelcast]
             [clojure.tools.logging :as log]))
 
 (defn emit-mapped-pairs [pairs collector]
   (doall
     (map #(do
-           (log/debugf "emitting pair: %s" %1)
            (let [emit-key (first %1)
                  emit-value (second %1)]
-             (log/debugf "emitting key: %s emit vlaue: %s " emit-key emit-value)
              (.emit collector emit-key emit-value)))
          pairs)))
 
-(defn- hmap
+;TODO issues for mapper and reducer macro
+;difficult to test
+;not binding
+(defmacro defmapper
   "runs the function f over the content
 
   f is a function of two arguments, key and value.
@@ -22,21 +24,12 @@
   f must return a sequence of *pairs* like
    [[key1 value1] [key2 value2] ...]
   "
-  [f]
-  (proxy
-      [Mapper] []
-    (map [k v collector]
-      (let [pair-seq (f k v)]
-        (if-not (coll? pair-seq)
-          (do
-            (log/errorf "Bad Mapper Function, returned result is not a Collection %s " pair-seq)
-            (throw (RuntimeException. "Bad Mapper function, should return a collection")))
-          (do
-            (log/debugf "Mapper Returned :%s " (class pair-seq))
-            (emit-mapped-pairs pair-seq collector)))))))
+  [fname args & body]
+  `(let [instance# (RemoteMapper.
+                     (pr-str '(fn ~args ~@body)))]
+     (def ~fname instance#)))
 
-
-(defn- hreducefactory
+(defmacro defreducer
   "runs the reducer function rf over the content
 
   rf is a function of three arguments,
@@ -45,33 +38,13 @@
 
   rf should return the accumulated result.
   "
-  [f initial-accumulator-value]
-  (proxy [ReducerFactory] []
-    (newReducer [key]
-      (let [acc (atom {:value initial-accumulator-value})]
-        (proxy
-            [Reducer] []
-          (beginReduce [k]
-            (do
-              (log/debugf "beginReduce with %s" k)
-              (swap! acc assoc :key k))
-            )
-          (reduce [v]
-            (do
-              (log/debugf "reduce with %s" v)
-              (let [reduced (f (:key @acc) v (:value @acc))]
-                (if-not (nil? reduced)
-                  (swap! acc assoc :value reduced)
-                  (do
-                    (log/errorf "Bad Reducer function, should set :val to acc : %s" @acc)
-                    (throw (RuntimeException. "Bad Reducer function, should set :val to acc")))))))
-          (finalizeReduce []
-            (let [ret-val (:value @acc)]
-              (log/debugf "finalizeReduce")
-              (reset! acc {:value initial-accumulator-value})
-              ret-val)))))))
+  [fname args & body]
+  `(let [instance# (RemoteReducerFactory.
+                     (pr-str '(fn ~args ~@body)))]
+     (def ~fname instance#)))
 
-(defn- hcombinerfactory
+
+(defmacro defcombiner
   "runs the combiner function cf over the content
 
   cf is a function of three arguments,
@@ -80,24 +53,12 @@
 
   cf should set the val eventually
   "
-  [f initial-accumulator-value]
-  (proxy [CombinerFactory] []
-    (newCombiner [key]
-      (log/debugf "newCombiner instance for key: %s " key)
-      (let [acc (atom {:value initial-accumulator-value})]
-        (proxy
-            [Combiner] []
-          (combine [k v]
-            (let [combined (f k v (:value @acc))]
-              (log/debugf "combined with key: %s value: %s" k v)
-              (swap! acc assoc :value combined)))
-          (finalizeChunk []
-            (let [ret-val (:value @acc)]
-              (log/debugf "finalizeChunk with value %s " ret-val)
-              (reset! acc {:value initial-accumulator-value})
-              ret-val)))))))
+  [fname args & body]
+  `(let [instance# (RemoteCombinerFactory.
+                     (pr-str '(fn ~args ~@body)))]
+     (def ~fname instance#)))
 
-(defn hcollator
+(defmacro defcollator
   "
   runs the collactor function f over the content
 
@@ -106,13 +67,10 @@
 
   [Entry1 Entry2 ...]
   "
-  [f]
-  (proxy [Collator] []
-    (collate [pairs]
-      ;(log/debugf "Collating %s " pairs)
-      ;(log/debugf "Collating %s " (class pairs))
-      (f (iterator-seq (.iterator pairs))))))
-
+  [fname args & body]
+  `(let [instance# (RemoteCollator.
+                     (pr-str '(fn ~args ~@body)))]
+     (def ~fname instance#)))
 
 (defn make-job-tracker [hz-instance]
   (.getJobTracker hz-instance "default"))
@@ -120,8 +78,10 @@
 (defn submit-job "returns the future object from Hazelcast Mapreduce Api"
   [{:keys [map mapper-fn combiner-fn combiner-acc reducer-fn reducer-acc collator-fn tracker]}]
   (let [src (KeyValueSource/fromMap map)
-        mapper (hmap mapper-fn)
-        reducer (hreducefactory reducer-fn reducer-acc)
+        ;mapper (hmap mapper-fn)
+        mapper mapper-fn
+        ;reducer (hreducefactory reducer-fn reducer-acc)
+        reducer reducer-fn
         job (atom (-> (.newJob tracker src)
                       (.mapper mapper)))]
     (log/debugf "Submitting new MR Job ...")
@@ -129,14 +89,14 @@
       (do
         (log/debugf "No Combiner defined for job...")
         (reset! job (-> @job
-                        (.combiner (hcombinerfactory combiner-fn combiner-acc)))))
+                        (.combiner combiner-fn))))
       )
     (if-not (nil? collator-fn)
       (do
         (log/debugf "No Collator defined for job...")
         (reset! job (-> @job
                         (.reducer reducer)
-                        (.submit (hcollator collator-fn)))))
+                        (.submit collator-fn))))
       (reset! job (-> @job
                       (.reducer reducer)
                       (.submit))))

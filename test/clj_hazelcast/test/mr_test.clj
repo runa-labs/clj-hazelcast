@@ -13,97 +13,116 @@
 
 (defn fixture [f]
   (hz/init)
-  (reset! mr-test-map (hz/get-map "caster.cluster-tests.mr-test-map"))
-  (reset! wordcount-map (hz/get-map "caster.cluster-tests.wordcount-map"))
-  (reset! combiner-map (hz/get-map "caster.cluster-tests.combiner-map"))
-  (reset! validation-map (hz/get-map "caster.cluster-tests.validation-map"))
+  (reset! mr-test-map (hz/get-map "clj-hazelcast.cluster-tests.mr-test-map"))
+  (reset! wordcount-map (hz/get-map "clj-hazelcast.cluster-tests.wordcount-map"))
+  (reset! combiner-map (hz/get-map "clj-hazelcast.cluster-tests.combiner-map"))
+  (reset! validation-map (hz/get-map "clj-hazelcast.cluster-tests.validation-map"))
   (f))
 
 (use-fixtures :once fixture)
 
+(mr/defmapper m1 [k _] [[k 1]])
+(mr/defreducer r1 [k v acc] (if (nil? acc) v (+ acc v)))
+
 (deftest simple-test
   (testing "key-count"
     (is (= {:k1 1 :k2 1 :k5 1 :k3 1 :k4 1}
-           (let [m (fn [k _] [[k 1]])
-                 r (fn [k v acc] (+ acc v))]
+           (do
              (hz/put! @mr-test-map :k1 "v1")
              (hz/put! @mr-test-map :k2 "v2")
              (hz/put! @mr-test-map :k3 "v3")
              (hz/put! @mr-test-map :k4 "v4")
              (hz/put! @mr-test-map :k5 "v5")
              (let [tracker (mr/make-job-tracker @hz/hazelcast)
-                   fut (mr/submit-job {:map @mr-test-map :mapper-fn m :reducer-fn r :reducer-acc 0 :tracker tracker})
+                   fut (mr/submit-job {:map @mr-test-map :mapper-fn m1 :reducer-fn r1 :tracker tracker})
                    res (.get fut 2 TimeUnit/SECONDS)]
                (log/infof "Result %s" res)
                res))))))
 
-(defn split-words
-  "split text into a list of words"
-  [text]
-  (re-seq #"\w+" text))
 
-(defn mapper
-  [k v]
-  (let [words (split-words v)]
-    (partition 2 (interleave words (take (count words) (repeatedly (fn [] 1)))))))
+
+(mr/defmapper mapper
+              [k v]
+              (let [words (re-seq #"\w+" v)]
+                (partition 2 (interleave words (take (count words) (repeatedly (fn [] 1)))))))
+
 
 (deftest wordcount-test
   (testing "mapper"
-    (is (= '(("foo" 1) ("bar" 1)) (mapper "some-key" "foo bar"))))
+    ;todo ugly - make it a concrete function
+    (is (= '(("foo" 1) ("bar" 1)) ((eval (read-string (.getFun mapper))) "some-key" "foo bar"))))
   (testing "wordcount"
     (is (= {"clojure" 3 "java" 2 "lisp" 1}
-           (let [r (fn [k v acc] (+ acc v))]
+           (do
              (hz/put! @wordcount-map :k1 "clojure java")
              (hz/put! @wordcount-map :k2 "java clojure")
              (hz/put! @wordcount-map :k3 "lisp clojure")
              (let [tracker (mr/make-job-tracker @hz/hazelcast)
-                   fut (mr/submit-job {:map @wordcount-map :mapper-fn mapper :reducer-fn r :reducer-acc 0 :tracker tracker})
+                   fut (mr/submit-job {:map @wordcount-map :mapper-fn mapper :reducer-fn r1 :tracker tracker})
                    res (.get fut 2 TimeUnit/SECONDS)]
                (log/infof "Result %s" res)
                res))))))
 
+
+(mr/defcombiner c1 [k v acc] (if (nil? acc) 1 (+ acc v)))
+
 (deftest wordcount-test-with-combiners
   (testing "combiners"
     (is (= {"the" 4, "over" 1, "quick" 1, "and" 1, "lazy" 1, "hound" 1, "jumps" 1, "brown" 1, "dog" 1, "fox" 2}
-           (let [c (fn [k v acc] (+ acc v))
-                 r (fn [k v acc] (+ acc v))]
+           (do
              (hz/put! @combiner-map :sentence1 "the quick brown fox jumps over the lazy dog")
              (hz/put! @combiner-map :sentence2 "the fox and the hound")
              (let [tracker (mr/make-job-tracker @hz/hazelcast)
-                   fut (mr/submit-job {:map @combiner-map :mapper-fn mapper :combiner-fn c :combiner-acc 0 :reducer-fn r :reducer-acc 0 :tracker tracker})
-                   res (.get fut 5 TimeUnit/SECONDS)]
+                   fut (mr/submit-job {:map @combiner-map :mapper-fn mapper :combiner-fn c1 :reducer-fn r1 :tracker tracker})
+                   res (.get fut 2 TimeUnit/SECONDS)]
                (log/infof "Result %s" res)
                res))))
     )
   )
 
+
+(mr/defmapper bad-mapper [_ _] 1)
+;bad mapper, should return a collection
+(mr/defreducer bad-reducer [k v acc] nil)
+;bad reducer ,should return a new accumulator
+
+
 (deftest validation
-  (testing "empty-source-map"
+  (testing "when input is empty"
     (is (= {}
-           (let [m (fn [_ _] 1)
-                 r (fn [k v acc] (+ acc v))
-                 tracker (mr/make-job-tracker @hz/hazelcast)]
-             (-> (mr/submit-job {:map @validation-map :mapper-fn m :reducer-fn r :reducer-acc 0 :tracker tracker})
+           (let [tracker (mr/make-job-tracker @hz/hazelcast)]
+             (-> (mr/submit-job {:map @validation-map :mapper-fn bad-mapper :reducer-fn r1 :tracker tracker})
                  (.get 2 TimeUnit/SECONDS)))))
     )
   (testing "bad-mapper"
     (is (thrown? ExecutionException
-                 (let [m (fn [_ _] 1)                       ;bad mapper, should return a collection
-                       r (fn [k v acc] (+ acc v))
-                       tracker (mr/make-job-tracker @hz/hazelcast)]
+                 (let [tracker (mr/make-job-tracker @hz/hazelcast)]
                    (hz/put! @validation-map :k1 "bad mapper")
                    (hz/put! @validation-map :k2 "mapper bad")
                    (hz/put! @validation-map :k3 "mapper mapper")
-                   (-> (mr/submit-job {:map @validation-map :mapper-fn m :reducer-fn r :reducer-acc 0 :tracker tracker})
+                   (-> (mr/submit-job {:map @validation-map :mapper-fn bad-mapper :reducer-fn r1 :tracker tracker})
                        (.get 2 TimeUnit/SECONDS))))))
   (testing "bad-reducer"
     (is (thrown? ExecutionException
-                 (let [m (fn [k _] [[k 1]])
-                       r (fn [k v acc] nil)                 ;bad reducer ,should return new accumulator
-                       tracker (mr/make-job-tracker @hz/hazelcast)]
+                 (let [tracker (mr/make-job-tracker @hz/hazelcast)]
                    (hz/put! @validation-map :k1 "clojure java")
                    (hz/put! @validation-map :k2 "java clojure")
                    (hz/put! @validation-map :k3 "lisp clojure")
-                   (-> (mr/submit-job {:map @validation-map :mapper-fn m :reducer-fn r :reducer-acc 0 :tracker tracker})
+                   (-> (mr/submit-job {:map @validation-map :mapper-fn m1 :reducer-fn bad-reducer :tracker tracker})
                        (.get 2 TimeUnit/SECONDS))))))
+  )
+
+(mr/defcollator col-fn [seq] (reduce + (vals seq)))
+
+(deftest collator
+  (testing "collator functionality - get total count")
+  (is (= 15
+         (do
+           (hz/put! @combiner-map :sentence1 "the quick brown fox jumps over the lazy dog")
+           (hz/put! @combiner-map :sentence2 "the fox and the hound the")
+           (let [tracker (mr/make-job-tracker @hz/hazelcast)
+                 fut (mr/submit-job {:map @combiner-map :mapper-fn mapper :reducer-fn r1 :collator-fn col-fn :tracker tracker})
+                 res (.get fut 2 TimeUnit/SECONDS)]
+             (log/infof "Result %s" res)
+             res))))
   )
