@@ -16,7 +16,8 @@
   (reset! mr-test-map (hz/get-map "clj-hazelcast.cluster-tests.mr-test-map"))
   (reset! wordcount-map (hz/get-map "clj-hazelcast.cluster-tests.wordcount-map"))
   (reset! validation-map (hz/get-map "clj-hazelcast.cluster-tests.validation-map"))
-  (f))
+  (f)
+  (hz/shutdown))
 
 (use-fixtures :once fixture)
 
