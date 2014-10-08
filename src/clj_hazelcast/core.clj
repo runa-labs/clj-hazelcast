@@ -29,6 +29,15 @@
   (when-not @hazelcast
     (reset! hazelcast (make-hazelcast opts))))
 
+(defn with-instance [^HazelcastInstance instance]
+  (reset! hazelcast instance))
+
+(defn shutdown []
+  (let [instance ^HazelcastInstance @hazelcast]
+    (reset! hazelcast nil)
+    (when instance
+      (.shutdown ^HazelcastInstance instance))))
+
 ;; (init)
 
 (defn do-with-lock [lockable thunk]

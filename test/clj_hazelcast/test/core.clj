@@ -8,7 +8,8 @@
 (defn fixture [f]
   (hazelcast/init)
   (reset! test-map (hazelcast/get-map "clj-hazelcast.cluster-tests.test-map"))
-  (f))
+  (f)
+  (hazelcast/shutdown))
 
 (use-fixtures :once fixture)
 
