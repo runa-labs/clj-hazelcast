@@ -15,17 +15,15 @@
 (def hz1 (atom nil))
 (def hz2 (atom nil))
 
-(def config (let [cfg (Config.)
-                  ;cl (.getClassLoader (.getClass HazelcastInstanceFactory))
-                  cl (.getContextClassLoader (Thread/currentThread))]
-              (.setEnabled (.. cfg getNetworkConfig getJoin getMulticastConfig) false)
-              (.addMember (.setEnabled (.. cfg getNetworkConfig getJoin getTcpIpConfig) true) "127.0.0.1")
-              (.addInterface (.setEnabled (.. cfg getNetworkConfig getInterfaces) true) "127.0.0.1")
-              (.setClassLoader cfg cl)
-              cfg))
-
-(defn make-hazelcast [cfg]
-  (Hazelcast/newHazelcastInstance cfg))
+(def config
+  (let [cfg (Config.)
+        ;;cl (.getClassLoader (.getClass HazelcastInstanceFactory))
+        cl (.getContextClassLoader (Thread/currentThread))]
+    (.setEnabled (.. cfg getNetworkConfig getJoin getMulticastConfig) false)
+    (.addMember (.setEnabled (.. cfg getNetworkConfig getJoin getTcpIpConfig) true) "127.0.0.1")
+    (.addInterface (.setEnabled (.. cfg getNetworkConfig getInterfaces) true) "127.0.0.1")
+    (.setClassLoader cfg cl)
+    cfg))
 
 (defmacro with-hz-binding
   [haz body]
@@ -33,8 +31,8 @@
      (~@body)))
 
 (defn fixture [f]
-  (reset! hz1 (make-hazelcast config))
-  (reset! hz2 (make-hazelcast config))
+  (reset! hz1 (hz/make-hazelcast config))
+  (reset! hz2 (hz/make-hazelcast config))
   (reset! distributed-map (with-hz-binding hz1 (hz/get-map "distributed-map")))
   (f))
 

@@ -4,7 +4,7 @@
   (:import
    (com.hazelcast.core Hazelcast HazelcastInstance EntryListener ItemListener
                        IMap IList EntryEvent)
-   (com.hazelcast.config XmlConfigBuilder TcpIpConfig)
+   (com.hazelcast.config XmlConfigBuilder Config TcpIpConfig)
    (java.util Collection Set List Map HashSet Queue)
    java.util.concurrent.locks.Lock
    java.util.concurrent.BlockingQueue))
@@ -23,7 +23,10 @@
     config))
 
 (defn make-hazelcast [opts]
-  (Hazelcast/newHazelcastInstance (make-hazelcast-config opts)))
+  (Hazelcast/newHazelcastInstance
+   (if (instance? com.hazelcast.config.Config opts)
+     opts
+     (make-hazelcast-config opts))))
 
 (defn init [& [opts]]
   (when-not @hazelcast
