@@ -7,7 +7,7 @@
    (com.hazelcast.config XmlConfigBuilder Config TcpIpConfig)
    (java.util Collection Set List Map HashSet Queue)
    java.util.concurrent.locks.Lock
-   java.util.concurrent.BlockingQueue))
+   [java.util.concurrent BlockingQueue TimeUnit]))
 
 (def ^:dynamic hazelcast (atom nil))
 
