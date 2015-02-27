@@ -15,3 +15,4 @@
 /test/clj_hazelcast/test/temp.clj
 /target/
 /.nrepl-port
+/pom.xml.asc

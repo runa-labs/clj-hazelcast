@@ -1,4 +1,4 @@
-(defproject com.runa/clj-hazelcast "1.2.1"
+(defproject org.clojars.runa/clj-hazelcast "1.2.1"
   :description "Clojure library for the Hazelcast p2p cluster"
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojars.runa/clj-kryo "1.5.0"]
