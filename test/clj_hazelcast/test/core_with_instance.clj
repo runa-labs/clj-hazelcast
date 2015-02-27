@@ -3,7 +3,8 @@
   (:require
    [clj-hazelcast.core :as hazelcast])
   (:import
-   com.hazelcast.core.Hazelcast))
+   com.hazelcast.core.Hazelcast
+   com.hazelcast.core.HazelcastInstance))
 
 (defonce ^:const map-name "clj-hazelcast.cluster-tests-with-instance.test-map")
 
@@ -19,9 +20,9 @@
 
 (deftest ensure-provided-instance-used
   "Putting via clj-hazelcast should put in the provided Hazelcast instance"
-  (let [instance-map (.getMap @hazelcast-instance map-name)
+  (let [instance-map (.getMap ^HazelcastInstance @hazelcast-instance map-name)
         clj-hazelcast-map (hazelcast/get-map map-name)]
     (is (= 456
            (do
              (hazelcast/put! clj-hazelcast-map :bar 456)
-             (.get instance-map :bar))))))
+             (get instance-map :bar))))))

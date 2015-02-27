@@ -1,14 +1,13 @@
 (ns clj-hazelcast.core
   (:require
-    [clj-kryo.core :as kryo])
+   [clj-kryo.core :as kryo])
   (:import
-    [com.hazelcast.core
-     Hazelcast HazelcastInstance EntryListener ItemListener
-     IMap IList EntryEvent]
-    [com.hazelcast.config XmlConfigBuilder TcpIpConfig]
-    [java.util Set List Map HashSet Queue]
-    java.util.concurrent.locks.Lock
-    [java.util.concurrent BlockingQueue TimeUnit]))
+   (com.hazelcast.core Hazelcast HazelcastInstance EntryListener ItemListener
+                       IMap IList EntryEvent)
+   (com.hazelcast.config XmlConfigBuilder Config TcpIpConfig)
+   (java.util Collection Set List Map HashSet Queue)
+   java.util.concurrent.locks.Lock
+   java.util.concurrent.BlockingQueue))
 
 (def ^:dynamic hazelcast (atom nil))
 
@@ -24,7 +23,10 @@
     config))
 
 (defn make-hazelcast [opts]
-  (Hazelcast/newHazelcastInstance (make-hazelcast-config opts)))
+  (Hazelcast/newHazelcastInstance
+   (if (instance? com.hazelcast.config.Config opts)
+     opts
+     (make-hazelcast-config opts))))
 
 (defn init [& [opts]]
   (when-not @hazelcast
@@ -42,7 +44,7 @@
 ;; (init)
 
 (defn do-with-lock [lockable thunk]
-  (let [^Lock lock (.getLock @hazelcast lockable)]
+  (let [^Lock lock (.getLock ^HazelcastInstance @hazelcast lockable)]
     (.lock lock)
     (try
       (thunk)
@@ -64,7 +66,7 @@
 (defn put-all! [^IMap dest ^Map src]
   (.putAll dest src))
 
-(defn clear! [m] (.clear m))
+(defn clear! [m] (.clear ^IMap m))
 
 (defn add-entry-listener! [^IMap m listener-fn]
   (let [listener (proxy [EntryListener] []
@@ -87,10 +89,10 @@
 (defn ^Set get-set [name]
   (.getSet ^HazelcastInstance @hazelcast name))
 
-(defn add! [list-or-set-or-queue item]
+(defn add! [^Collection list-or-set-or-queue item]
   (.add list-or-set-or-queue (kryo/wrap-kryo-serializable item)))
 
-(defn add-all! [list-or-set-or-queue items]
+(defn add-all! [^Collection list-or-set-or-queue items]
   (.addAll list-or-set-or-queue items))
 
 (defn add-item-listener! [^IList list listener-fn]
