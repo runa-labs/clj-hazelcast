@@ -51,3 +51,11 @@
                 (hazelcast/add-all! queue [{:my-map-value 42} {:my-map-value 52}])
                 (swap! result conj (:my-map-value (hazelcast/take! queue)))
                 (swap! result conj (:my-map-value (hazelcast/take! queue))))))))
+
+(deftest put-ttl-test
+  (is (= "will expire"
+         (do
+           (hazelcast/put-ttl! @test-map :key-ttl "will expire" 1)
+           (:key-ttl @test-map))))
+  (Thread/sleep 2000)
+  (is (nil? (:key-ttl @test-map))))

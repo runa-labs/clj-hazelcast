@@ -7,7 +7,7 @@
    (com.hazelcast.config XmlConfigBuilder Config TcpIpConfig)
    (java.util Collection Set List Map HashSet Queue)
    java.util.concurrent.locks.Lock
-   java.util.concurrent.BlockingQueue))
+   [java.util.concurrent BlockingQueue TimeUnit]))
 
 (def ^:dynamic hazelcast (atom nil))
 
@@ -59,6 +59,9 @@
 
 (defn put! [^IMap m key value]
   (.put m key (kryo/wrap-kryo-serializable value)))
+
+(defn put-ttl! [^IMap m key value ttl-seconds]
+  (.put m key (kryo/wrap-kryo-serializable value) ttl-seconds TimeUnit/SECONDS))
 
 (defn put-all! [^IMap dest ^Map src]
   (.putAll dest src))
